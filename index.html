@@ -42,6 +42,7 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-left: 10px;
         }
         .upload-btn:hover {
             background-color: #45a049;
@@ -53,20 +54,54 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin-left: 10px;
         }
         .copy-btn:hover {
             background-color: #1976D2;
         }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
         .file-info {
+            flex-grow: 1;
             color: #666;
             font-size: 0.9em;
+        }
+        .button-group {
+            display: flex;
+            align-items: center;
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+        }
+        #dropZone.dragover {
+            background-color: #e9ecef;
+            border-color: #4CAF50;
         }
     </style>
 </head>
 <body>
     <div class="upload-container">
         <h2>Upload Files</h2>
-        <input type="file" id="fileInput" multiple>
+        <div id="dropZone">
+            Drag & drop files here or click to select
+        </div>
+        <input type="file" id="fileInput" multiple style="display: none">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Select Files</button>
         <button class="upload-btn" onclick="uploadFiles()">Upload</button>
     </div>
 
@@ -77,10 +112,44 @@
 
     <script>
         // Store files in memory (in a real application, you'd use a backend server)
-        const uploadedFiles = [];
+        const uploadedFiles = new Map();
+
+        // Check if we're viewing a shared file
+        window.addEventListener('load', () => {
+            const path = window.location.pathname.substring(1);
+            if (path && path.startsWith('file/')) {
+                const fileId = path.replace('file/', '');
+                const file = uploadedFiles.get(fileId);
+                if (file) {
+                    window.location.href = file.url;
+                }
+            }
+        });
+
+        // Setup drag and drop
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            fileInput.files = e.dataTransfer.files;
+        });
+
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
 
         function uploadFiles() {
-            const fileInput = document.getElementById('fileInput');
             const files = fileInput.files;
 
             for (let file of files) {
@@ -91,7 +160,7 @@
                     size: file.size,
                     url: URL.createObjectURL(file)
                 };
-                uploadedFiles.push(fileObj);
+                uploadedFiles.set(fileId, fileObj);
             }
 
             updateFilesList();
@@ -113,24 +182,46 @@
                     Size: ${file.size} bytes
                 `;
                 
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
+
                 const copyButton = document.createElement('button');
                 copyButton.className = 'copy-btn';
                 copyButton.textContent = 'Copy Link';
-                copyButton.onclick = () => copyFileLink(file.url);
+                copyButton.onclick = () => copyFileLink(file.id);
 
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-btn';
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => deleteFile(file.id);
+
+                buttonGroup.appendChild(copyButton);
+                buttonGroup.appendChild(deleteButton);
                 fileItem.appendChild(fileInfo);
-                fileItem.appendChild(copyButton);
+                fileItem.appendChild(buttonGroup);
                 filesList.appendChild(fileItem);
             });
         }
 
-        function copyFileLink(url) {
-            navigator.clipboard.writeText(url).then(() => {
+        function copyFileLink(fileId) {
+            const link = `${window.location.origin}/file/${fileId}`;
+            navigator.clipboard.writeText(link).then(() => {
                 alert('Link copied to clipboard!');
             }).catch(err => {
                 console.error('Failed to copy link:', err);
                 alert('Failed to copy link. Please try again.');
             });
+        }
+
+        function deleteFile(fileId) {
+            if (confirm('Are you sure you want to delete this file?')) {
+                const file = uploadedFiles.get(fileId);
+                if (file) {
+                    URL.revokeObjectURL(file.url); // Clean up the blob URL
+                    uploadedFiles.delete(fileId);
+                    updateFilesList();
+                }
+            }
         }
     </script>
 </body>
