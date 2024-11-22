@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Hosting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .upload-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .file-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .upload-btn:hover {
+            background-color: #45a049;
+        }
+        .copy-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .copy-btn:hover {
+            background-color: #1976D2;
+        }
+        .file-info {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h2>Upload Files</h2>
+        <input type="file" id="fileInput" multiple>
+        <button class="upload-btn" onclick="uploadFiles()">Upload</button>
+    </div>
+
+    <div class="file-list">
+        <h2>Uploaded Files</h2>
+        <div id="filesList"></div>
+    </div>
+
+    <script>
+        // Store files in memory (in a real application, you'd use a backend server)
+        const uploadedFiles = [];
+
+        function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+
+            for (let file of files) {
+                const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                const fileObj = {
+                    id: fileId,
+                    name: file.name,
+                    size: file.size,
+                    url: URL.createObjectURL(file)
+                };
+                uploadedFiles.push(fileObj);
+            }
+
+            updateFilesList();
+            fileInput.value = '';
+        }
+
+        function updateFilesList() {
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = '';
+
+            uploadedFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'file-info';
+                fileInfo.innerHTML = `
+                    <strong>${file.name}</strong><br>
+                    Size: ${file.size} bytes
+                `;
+                
+                const copyButton = document.createElement('button');
+                copyButton.className = 'copy-btn';
+                copyButton.textContent = 'Copy Link';
+                copyButton.onclick = () => copyFileLink(file.url);
+
+                fileItem.appendChild(fileInfo);
+                fileItem.appendChild(copyButton);
+                filesList.appendChild(fileItem);
+            });
+        }
+
+        function copyFileLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy link:', err);
+                alert('Failed to copy link. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>
