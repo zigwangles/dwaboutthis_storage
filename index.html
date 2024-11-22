@@ -92,6 +92,21 @@
             background-color: #e9ecef;
             border-color: #4CAF50;
         }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -103,6 +118,9 @@
         <input type="file" id="fileInput" multiple style="display: none">
         <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Select Files</button>
         <button class="upload-btn" onclick="uploadFiles()">Upload</button>
+        <div class="progress-bar" id="progressBar">
+            <div class="progress" id="progress"></div>
+        </div>
     </div>
 
     <div class="file-list">
@@ -111,24 +129,18 @@
     </div>
 
     <script>
-        // Store files in memory (in a real application, you'd use a backend server)
-        const uploadedFiles = new Map();
-
-        // Check if we're viewing a shared file
+        const API_URL = 'http://localhost:3000';
+        
+        // Load files on page load
         window.addEventListener('load', () => {
-            const path = window.location.pathname.substring(1);
-            if (path && path.startsWith('file/')) {
-                const fileId = path.replace('file/', '');
-                const file = uploadedFiles.get(fileId);
-                if (file) {
-                    window.location.href = file.url;
-                }
-            }
+            loadFiles();
         });
 
         // Setup drag and drop
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -149,37 +161,68 @@
             fileInput.click();
         });
 
-        function uploadFiles() {
-            const files = fileInput.files;
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_URL}/files`);
+                const files = await response.json();
+                updateFilesList(files);
+            } catch (error) {
+                console.error('Error loading files:', error);
+                alert('Error loading files. Please try again.');
+            }
+        }
 
+        async function uploadFiles() {
+            const files = fileInput.files;
+            
             for (let file of files) {
-                const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                const fileObj = {
-                    id: fileId,
-                    name: file.name,
-                    size: file.size,
-                    url: URL.createObjectURL(file)
-                };
-                uploadedFiles.set(fileId, fileObj);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    progressBar.style.display = 'block';
+                    
+                    const response = await fetch(`${API_URL}/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        loadFiles();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                    alert(`Error uploading ${file.name}. Please try again.`);
+                } finally {
+                    progressBar.style.display = 'none';
+                    progress.style.width = '0%';
+                }
             }
 
-            updateFilesList();
             fileInput.value = '';
         }
 
-        function updateFilesList() {
+        function updateFilesList(files) {
             const filesList = document.getElementById('filesList');
             filesList.innerHTML = '';
 
-            uploadedFiles.forEach(file => {
+            files.forEach(file => {
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 
                 const fileInfo = document.createElement('div');
                 fileInfo.className = 'file-info';
                 fileInfo.innerHTML = `
-                    <strong>${file.name}</strong><br>
-                    Size: ${file.size} bytes
+                    <strong>${file.originalName}</strong><br>
+                    Size: ${formatFileSize(file.size)}
                 `;
                 
                 const buttonGroup = document.createElement('div');
@@ -203,8 +246,15 @@
             });
         }
 
+        function formatFileSize(bytes) {
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 Byte';
+            const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+            return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+        }
+
         function copyFileLink(fileId) {
-            const link = `${window.location.origin}/file/${fileId}`;
+            const link = `${API_URL}/file/${fileId}`;
             navigator.clipboard.writeText(link).then(() => {
                 alert('Link copied to clipboard!');
             }).catch(err => {
@@ -213,13 +263,27 @@
             });
         }
 
-        function deleteFile(fileId) {
+        async function deleteFile(fileId) {
             if (confirm('Are you sure you want to delete this file?')) {
-                const file = uploadedFiles.get(fileId);
-                if (file) {
-                    URL.revokeObjectURL(file.url); // Clean up the blob URL
-                    uploadedFiles.delete(fileId);
-                    updateFilesList();
+                try {
+                    const response = await fetch(`${API_URL}/file/${fileId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        loadFiles();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting file:', error);
+                    alert('Error deleting file. Please try again.');
                 }
             }
         }
