@@ -3,100 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Storage with ChibiSafe</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@1.14.0/dist/full.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/firebase@8.6.8/firebase-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@8.6.8/firebase-storage.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.js"></script>
+    <title>File Upload App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@1.14.7/dist/full.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parse@latest/parse.min.js"></script>
     <style>
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background: linear-gradient(180deg, #edf2f7 0%, #e2e8f0 100%);
-        }
-        .header-bg {
-            background: linear-gradient(to right, #4a90e2, #9013fe);
-        }
-        .btn-upload {
-            background: #4a90e2;
-            color: white;
-            transition: background 0.3s;
-        }
-        .btn-upload:hover {
-            background: #3872c6;
+        body {
+            background: linear-gradient(120deg, #3498db, #8e44ad);
+            background-attachment: fixed;
         }
     </style>
 </head>
-<body>
-    <nav class="flex justify-between px-8 py-4 header-bg text-white">
-        <div class="text-2xl font-bold">ChibiSafe File Storage</div>
-    </nav>
-    <header class="text-center p-16 header-bg text-white">
-        <h1 class="text-4xl font-bold">Store Your Files Safely</h1>
-        <p class="mt-4 text-lg">Quick and easy file uploads</p>
-    </header>
-    <section id="upload-section" class="container mx-auto p-8">
-        <h2 class="text-3xl font-semibold text-center mt-8">Upload Your Files</h2>
-        <div class="flex justify-center mt-4">```html
-            <input type="file" id="fileInput" class="file-input file-input-bordered file-input-accent w-full max-w-xs" />
-            <button class="btn-upload btn ml-4" onclick="uploadFile()">Upload</button>
-        </div>
-    </section>
-    <section class="container mx-auto p-8">
-        <div class="swiper-container">
-            <div class="swiper-wrapper" id="fileList"></div>
-            <div class="swiper-button-next"></div>
-            <div class="swiper-button-prev"></div>
-        </div>
-    </section>
-    <footer class="text-center p-5 header-bg text-white">
-        <p>&copy; 2023 ChibiSafe. All rights reserved.</p>
-    </footer>
+<body class="text-white flex flex-col items-center justify-center min-h-screen">
+    <h1 class="text-4xl font-bold mb-5">File Upload App</h1>
+    <input type="file" id="fileInput" multiple class="file-input mb-5" />
+    <button id="uploadButton" class="btn btn-primary">Upload</button>
+    <div id="fileList" class="mt-5 w-full max-w-md overflow-x-auto"></div>
     <script>
-        var firebaseConfig = {
-            apiKey: "AIzaSyBoPuNz4x1RHQ3BJ8oFcbiSMerz8Rrem34",
-            authDomain: "file-storage-ec90e.firebaseapp.com",
-            projectId: "file-storage-ec90e",
-            storageBucket: "file-storage-ec90e.firebasestorage.app",
-            messagingSenderId: "136593874143",
-            appId: "1:136593874143:web:b136d41d42b7d3541add6a"
-        };
-        firebase.initializeApp(firebaseConfig);
-        var storage = firebase.storage();
-        var swiper = new Swiper('.swiper-container', {
-            loop: true,
-            navigation: {
-                nextEl: '.swiper-button-next',
-                prevEl: '.swiper-button-prev',
-            }
-        });
-        function uploadFile() {
-            var fileInput = document.getElementById('fileInput');
-            var file = fileInput.files[0];
-            var storageRef = storage.ref('files/' + file.name);
-            storageRef.put(file).then(() => {
-                alert('File uploaded successfully');
-                displayFiles();
-            });
-        }
+        Parse.initialize("vrdMXkjhB6LuvqcBnBGo1QCISdAYVnjw2fUgteGx", "F49AlQeK6M8T4l2OoMB2ChhmoFhgIOtrkjh3TstB");
+        Parse.serverURL = "https://parseapi.back4app.com/";
 
-        function displayFiles() {
-            var fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';
-            storage.ref('files/').listAll().then((result) => {
-                result.items.forEach((fileRef) => {
-                    fileRef.getDownloadURL().then((url) => {
-                        var slide = document.createElement('div');
-                        slide.className = 'swiper-slide';
-                        slide.innerHTML = `<div class="p-4"><a href="${url}" target="_blank" class="text-blue-500">${fileRef.name}</a></div>`;
-                        fileList.appendChild(slide);
-                    });
+        const uploadFiles = async (files) => {
+            const fileList = document.getElementById("fileList");
+            for (let file of files) {
+                const parseFile = new Parse.File(file.name, file);
+                await parseFile.save().then(async () => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'flex justify-between bg-gray-800 p-2 mb-2 rounded-md';
+                    listItem.innerHTML = `<a href="${parseFile.url()}" download class="text-lg">${file.name}</a><span>${(file.size / 1024).toFixed(2)} KB</span>`;
+                    fileList.appendChild(listItem);
                 });
-            });
-        }
+            }
+        };
+
+        document.getElementById("uploadButton").onclick = function () {
+            const fileInput = document.getElementById("fileInput");
+            const files = fileInput.files;
+            uploadFiles(files);
+            fileInput.value = '';
+        };
     </script>
 </body>
 </html>
